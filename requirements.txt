@@ -1,3 +1,4 @@
+python-dotenv
 streamlit
 streamlit-lottie
 groq
@@ -8,3 +9,15 @@ pandas
 scikit-learn
 transformers
 requests
+
+streamlit
+streamlit-lottie
+groq
+fpdf
+python-docx
+numpy
+pandas
+scikit-learn
+transformers
+requests
+
