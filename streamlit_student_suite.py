@@ -341,10 +341,14 @@ if page == "Resume Generator":
 # ==============================================================
 # 📄 PDF CREATOR
 # ==============================================================
+# ==============================================================
+# 📄 PDF CREATOR
+# ==============================================================
 if page == "PDF Creator":
     st.header("📄 PDF Creator")
     anim = load_lottie("https://lottie.host/3a798c38-f295-4b72-81b0-19e61615f58a/7WZtHknW8a.json")
-    if anim: st_lottie(anim, height=200, key="pdf_anim")
+    if anim:
+        st_lottie(anim, height=200, key="pdf_anim")
 
     text = st.text_area("Enter text to convert into PDF", height=250)
     title = st.text_input("Title", value="Document")
@@ -360,26 +364,37 @@ if page == "PDF Creator":
                 pdf.cell(0, 10, title, ln=True)
                 pdf.set_font("Helvetica", "", 12)
                 pdf.multi_cell(0, 8, text)
-                out = BytesIO()
-                pdf.output(out)
-                out.seek(0)
-                st.download_button("📘 Download PDF", out, file_name=f"{title}.pdf")
-                st.success("✅ PDF generated!")
+
+                # ✅ FIX: use dest='S' to return the PDF as a string
+                pdf_data = pdf.output(dest='S').encode('latin1')
+
+                st.download_button(
+                    "📘 Download PDF",
+                    data=pdf_data,
+                    file_name=f"{title}.pdf",
+                    mime="application/pdf"
+                )
+
+                st.success("✅ PDF generated successfully!")
             except Exception as e:
                 st.error(f"PDF creation failed: {e}")
 
-# ==============================================================
+
+## ==============================================================
 # 🧾 DOCUMENT CREATOR (DOCX / PDF)
 # ==============================================================
 if page == "Document Creator":
     st.header("🧾 Document Creator")
     anim = load_lottie("https://lottie.host/ef3ac3d4-5d64-4b52-9e87-19e15e7e6da2/nx3YJHq9rA.json")
-    if anim: st_lottie(anim, height=200, key="doc_anim")
+    if anim:
+        st_lottie(anim, height=200, key="doc_anim")
 
     title = st.text_input("Document Title")
     body = st.text_area("Body (supports markdown)", height=250)
 
     col1, col2 = st.columns(2)
+
+    # DOCX Export
     with col1:
         if st.button("Export DOCX"):
             try:
@@ -387,28 +402,45 @@ if page == "Document Creator":
                 doc.add_heading(title or "Document", 0)
                 for line in body.split("\n"):
                     doc.add_paragraph(line)
+
                 out = BytesIO()
                 doc.save(out)
                 out.seek(0)
-                st.download_button("📄 Download DOCX", out, file_name=f"{title or 'doc'}.docx")
-            except Exception as e:
-                st.error(f"Failed: {e}")
 
+                st.download_button(
+                    "📄 Download DOCX",
+                    data=out,
+                    file_name=f"{title or 'doc'}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+                st.success("✅ DOCX created successfully!")
+            except Exception as e:
+                st.error(f"Failed to export DOCX: {e}")
+
+    # PDF Export
     with col2:
         if st.button("Export PDF"):
             try:
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Helvetica", "B", 16)
-                pdf.cell(0, 10, title, ln=True)
+                pdf.cell(0, 10, title or "Document", ln=True)
                 pdf.set_font("Helvetica", "", 12)
                 pdf.multi_cell(0, 8, body)
-                out = BytesIO()
-                pdf.output(out)
-                out.seek(0)
-                st.download_button("📘 Download PDF", out, file_name=f"{title or 'doc'}.pdf")
+
+                # ✅ FIX: use dest='S' to get the PDF content as a string
+                pdf_data = pdf.output(dest='S').encode('latin1')
+
+                st.download_button(
+                    "📘 Download PDF",
+                    data=pdf_data,
+                    file_name=f"{title or 'doc'}.pdf",
+                    mime="application/pdf"
+                )
+                st.success("✅ PDF created successfully!")
             except Exception as e:
                 st.error(f"Failed to export PDF: {e}")
+
 
 # ==============================================================
 # 💻 IDE (Multi-language Runner)
@@ -511,30 +543,81 @@ if page == "Resume Enhancer (ML)":
 # ==============================================================
 # 💻 CODE INSIGHTS (ML)
 # ==============================================================
+# ==============================================================
+# 💻 CODE INSIGHTS (ML)
+# ==============================================================
 if page == "Code Insights (ML)":
     st.header("💻 Code Insights (ML)")
     anim = load_lottie("https://lottie.host/4a4ebcc4-3a11-4b8a-87b3-63dc0b192ec3/GBW7kbAI3M.json")
-    if anim: st_lottie(anim, height=200, key="insights_anim")
+    if anim:
+        st_lottie(anim, height=200, key="insights_anim")
+
     lang = st.selectbox("Select Language", ["python", "javascript", "cpp", "java"])
-    code_ci = st.text_area("Paste your code", height=200)
+    code_ci = st.text_area("Paste your code", height=220)
+
     if st.button("Analyze Code"):
         findings = []
+        score = 100  # start perfect, subtract penalties
+
+        # ---------- Static rule-based checks ----------
         if "== None" in code_ci:
-            findings.append("🔹 Use `is None` instead of `== None` for Pythonic style.")
+            findings.append("🔹 Use `is None` instead of `== None` (Pythonic style).")
+            score -= 5
         if "var " in code_ci:
-            findings.append("🔹 Use `let` or `const` instead of `var` in JavaScript.")
-        if len(code_ci) > 300:
+            findings.append("🔹 Use `let` or `const` instead of `var` in JS.")
+            score -= 3
+        if len(code_ci.splitlines()) > 50:
             findings.append("🔹 Large file: consider modularizing your code.")
+            score -= 4
+        if "print(" not in code_ci and "console.log" not in code_ci:
+            findings.append("💡 Add print/logs for debugging or progress tracking.")
+            score -= 2
+
+        # ---------- Cyclomatic Complexity (if Python) ----------
         if cc_visit and lang == "python":
             try:
                 blocks = cc_visit(code_ci)
-                complex = [b for b in blocks if b.complexity >= 10]
-                if complex:
-                    findings.append(f"⚠️ {len(complex)} functions with high complexity detected.")
+                complex_funcs = [b for b in blocks if b.complexity >= 10]
+                if complex_funcs:
+                    findings.append(
+                        f"⚠️ {len(complex_funcs)} functions with high complexity — refactor them."
+                    )
+                    score -= len(complex_funcs) * 2
             except Exception:
                 pass
+
+        # ---------- ML-based pattern similarity ----------
+        if TfidfVectorizer and cosine_similarity:
+            try:
+                # Example of a "clean" snippet corpus
+                clean_code_samples = [
+                    "def clean_function(x): return x + 1",
+                    "for i in range(10): print(i)",
+                    "class Example: pass",
+                    "console.log('Hello world');",
+                    "if (x === null) return;"
+                ]
+                vec = TfidfVectorizer(stop_words=None, analyzer="char", ngram_range=(3, 5))
+                data = clean_code_samples + [code_ci]
+                X = vec.fit_transform(data)
+                sim = cosine_similarity(X[-1], X[:-1]).mean()
+                ml_score = round(sim * 100, 2)
+                score = (score * 0.6) + (ml_score * 0.4)  # combine with heuristic
+            except Exception as e:
+                findings.append(f"⚠️ ML analysis skipped: {e}")
+
+        # ---------- Final Insights ----------
         st.subheader("Findings:")
         st.write("\n".join(findings) or "✅ Code looks clean!")
+
+        st.metric("🧠 Code Quality Score", f"{score:.1f}/100")
+
+        if score >= 85:
+            st.success("Excellent code quality! Follows good practices.")
+        elif score >= 60:
+            st.info("Good code, but could be more optimized or cleaner.")
+        else:
+            st.warning("⚠️ Needs improvement — refactor for readability and maintainability.")
 
 # ==============================================================
 # 📚 STUDY RECOMMENDER
