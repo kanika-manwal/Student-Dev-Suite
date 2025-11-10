@@ -564,34 +564,51 @@ if page == "Study Recommender":
 # ==============================================================
 if page == "Notes Summarizer":
     st.header("📝 Notes Summarizer")
-    anim = load_lottie("https://lottie.host/4d8ff438-5d6d-40ce-b36d-5c7c02c7d35d/EPPvmnSv7n.json")
-    if anim: st_lottie(anim, height=200, key="notes_anim")
 
+    # Lottie animation
+    anim = load_lottie("https://lottie.host/4d8ff438-5d6d-40ce-b36d-5c7c02c7d35d/EPPvmnSv7n.json")
+    if anim:
+        st_lottie(anim, height=200, key="notes_anim")
+
+    # Input section
     notes = st.text_area("Paste your notes", height=250, key="notes_text")
     topk = st.slider("Keywords", 5, 20, 10)
+
+    # Summarization button
     if st.button("Summarize Notes"):
         if not TfidfVectorizer or not np:
-            st.error("scikit-learn not installed.")
+            st.error("⚠️ scikit-learn or numpy not installed.")
         else:
             try:
+                # --- Keyword Extraction ---
                 vec = TfidfVectorizer(stop_words="english")
                 X = vec.fit_transform([notes])
                 feats = np.array(vec.get_feature_names_out())
                 idx = X.toarray()[0].argsort()[::-1][:topk]
                 kw = feats[idx]
+
                 st.subheader("🔑 Top Keywords")
                 st.write(", ".join(kw))
+
+                # --- Sentence-Level Summarization ---
                 sentences = [s.strip() for s in notes.split(".") if len(s.strip()) > 5]
                 if sentences:
                     vec_s = TfidfVectorizer(stop_words="english").fit_transform(sentences)
-                    sims = cosine_similarity(vec_s, vec_s.mean(axis=0))
+                    vec_s = vec_s.toarray()  # ✅ FIX: convert sparse matrix to numpy array
+                    centroid = np.mean(vec_s, axis=0).reshape(1, -1)
+                    sims = cosine_similarity(vec_s, centroid)
                     top_s = np.argsort(-sims.ravel())[: min(5, len(sentences))]
                     summary = ". ".join([sentences[i] for i in top_s])
+
                     st.subheader("🧩 Summary")
                     st.write(summary)
+
+                # Save notes in user session
                 st.session_state.user_data["notes"] = notes
+
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"❌ Error: {e}")
+
 
 # ==============================================================
 # 📈 PROGRESS PREDICT (ML)
